@@ -1,0 +1,140 @@
+name: Build, Push & GitOps Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Target Deployment Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # ==========================================
+  # Build & Push Docker Images
+  # ==========================================
+  build-and-push:
+    name: Build & Push Container Images
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_short }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate Short SHA Tag
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build & Push Backend
+      - name: Build & Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-task-backend:${{ steps.vars.outputs.sha_short }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-task-backend:latest
+
+      # Build & Push Worker
+      - name: Build & Push Worker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./worker
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-task-worker:${{ steps.vars.outputs.sha_short }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-task-worker:latest
+
+      # Build & Push Frontend
+      - name: Build & Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-task-frontend:${{ steps.vars.outputs.sha_short }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/ai-task-frontend:latest
+
+  # ==========================================
+  # GitOps Update: Staging Overlay
+  # ==========================================
+  deploy-staging:
+    name: GitOps Auto-Deploy (Staging)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event.inputs.target_env != 'production'
+    steps:
+      - name: Checkout Infrastructure Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/ai-task-processing-infra
+          token: ${{ secrets.GITOPS_TOKEN || secrets.GITHUB_TOKEN }}
+          path: infra-repo
+
+      - name: Update Staging Image Tags via Kustomize
+        run: |
+          cd infra-repo/kubernetes/overlays/staging
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          
+          # Update tags in kustomization.yaml
+          sed -i "s/newTag: .*/newTag: $TAG/g" kustomization.yaml
+
+      - name: Commit and Push to Infrastructure Repository
+        run: |
+          cd infra-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add kubernetes/overlays/staging/kustomization.yaml
+          git commit -m "chore(gitops): update staging image tags to commit ${{ needs.build-and-push.outputs.image_tag }}" || exit 0
+          git push origin main
+
+  # ==========================================
+  # GitOps Update: Production (Approval Gate)
+  # ==========================================
+  deploy-production:
+    name: GitOps Production Release
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    environment: production # Requires manual approval gate configured in GitHub Repo Settings
+    if: github.event.inputs.target_env == 'production'
+    steps:
+      - name: Checkout Infrastructure Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/ai-task-processing-infra
+          token: ${{ secrets.GITOPS_TOKEN || secrets.GITHUB_TOKEN }}
+          path: infra-repo
+
+      - name: Update Production Image Tags via Kustomize
+        run: |
+          cd infra-repo/kubernetes/overlays/production
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          
+          sed -i "s/newTag: .*/newTag: $TAG/g" kustomization.yaml
+
+      - name: Commit and Push Production Release
+        run: |
+          cd infra-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add kubernetes/overlays/production/kustomization.yaml
+          git commit -m "release(gitops): deploy version ${{ needs.build-and-push.outputs.image_tag }} to production" || exit 0
+          git push origin main
