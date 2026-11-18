@@ -1,10 +1,10 @@
 const rateLimit = require('express-rate-limit');
 const { errorResponse } = require('../utils/apiResponse');
 
-// General API rate limiter: 300 requests per 15 minutes
+// General API rate limiter: 1000 requests per 15 minutes
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -12,10 +12,10 @@ const apiLimiter = rateLimit({
   }
 });
 
-// Stricter rate limiter for sensitive authentication endpoints: 30 requests per 15 minutes
+// Auth rate limiter: 200 requests per 15 minutes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

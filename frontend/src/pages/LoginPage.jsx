@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Cpu, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Cpu, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ export const LoginPage = () => {
     email: '',
     password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -33,32 +34,54 @@ export const LoginPage = () => {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setFormData({
+      email: 'demo@aitaskplatform.internal',
+      password: 'DemoPassword123!'
+    });
+    try {
+      setLoading(true);
+      // Try login or register demo user if not existing
+      await login({
+        email: 'demo@aitaskplatform.internal',
+        password: 'DemoPassword123!'
+      });
+      navigate('/dashboard');
+    } catch (e) {
+      // If demo user doesn't exist yet, we will auto-register them
+      navigate('/register');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-surface-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="flex items-center justify-center space-x-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-navy flex items-center justify-center text-white shadow-md">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Brand Header */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <Link to="/" className="inline-flex items-center space-x-3 mb-6 group">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 group-hover:scale-105 transition-all">
             <Cpu className="w-6 h-6" />
           </div>
-          <span className="font-bold text-xl text-navy tracking-tight">AI Task Platform</span>
+          <span className="font-extrabold text-xl text-slate-900 tracking-tight">AI Task Platform</span>
         </Link>
-        <h2 className="text-center text-2xl font-bold text-content-primary">
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
           Sign in to your account
         </h2>
-        <p className="mt-1 text-center text-xs text-content-secondary">
-          Access the distributed task queue and worker monitoring
+        <p className="mt-1 text-xs text-slate-500">
+          Access the distributed queue, worker telemetry, and audit logs
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-sm border border-surface-border rounded-xl sm:px-10">
+        <div className="bg-white py-8 px-6 shadow-sm border border-slate-200/80 rounded-2xl sm:px-10">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-xs font-semibold text-content-primary uppercase tracking-wider mb-1">
-                Email Address
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Work Email
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-content-muted">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <Mail className="h-4 w-4" />
                 </div>
                 <input
@@ -67,29 +90,38 @@ export const LoginPage = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  placeholder="jane@company.com"
-                  className="w-full pl-9 pr-3.5 py-2 text-sm bg-white border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand text-content-primary placeholder:text-content-muted"
+                  placeholder="name@company.com"
+                  className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all shadow-2xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-content-primary uppercase tracking-wider mb-1">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Password
+                </label>
+              </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-content-muted">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3.5 py-2 text-sm bg-white border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand text-content-primary placeholder:text-content-muted"
+                  className="w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all shadow-2xs"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
@@ -97,12 +129,12 @@ export const LoginPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center space-x-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-brand hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50 transition-colors"
+                className="w-full flex justify-center items-center space-x-2 py-2.5 px-4 rounded-xl shadow-sm text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all active:scale-95"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Authenticating...</span>
+                    <span>Signing in...</span>
                   </>
                 ) : (
                   <>
@@ -114,9 +146,10 @@ export const LoginPage = () => {
             </div>
           </form>
 
-          <div className="mt-6 text-center text-xs text-content-secondary">
+          {/* Registration Link */}
+          <div className="mt-6 text-center text-xs text-slate-500 pt-4 border-t border-slate-100">
             <span>Don't have an account? </span>
-            <Link to="/register" className="font-semibold text-brand hover:underline">
+            <Link to="/register" className="font-bold text-blue-600 hover:underline">
               Create an account
             </Link>
           </div>

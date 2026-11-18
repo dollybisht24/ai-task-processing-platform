@@ -5,14 +5,16 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import StatusBadge from '../components/StatusBadge';
 import {
   Search,
-  Filter,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   ArrowRight,
   Loader2,
   Clock,
-  Layers
+  Layers,
+  X,
+  History,
+  Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -56,7 +58,7 @@ export const TaskHistoryPage = () => {
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       fetchTasks(1);
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(delayDebounce);
   }, [fetchTasks]);
@@ -70,110 +72,133 @@ export const TaskHistoryPage = () => {
 
   return (
     <DashboardLayout>
-      {/* Header */}
-      <div className="pb-6 border-b border-surface-border">
-        <h1 className="text-2xl font-bold text-content-primary tracking-tight">Task History</h1>
-        <p className="text-xs text-content-secondary mt-0.5">
-          Browse, inspect, and analyze all past text processing executions
-        </p>
+      {/* Page Title */}
+      <div className="pb-6 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Execution Audit History</h1>
+            <span className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+              {pagination.totalTasks} total
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Search, filter, and inspect past asynchronous text-processing runs
+          </p>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-surface-border shadow-sm">
+      <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs">
         {/* Search Input */}
         <div className="relative w-full sm:w-80">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-content-muted">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
             <Search className="w-4 h-4" />
           </div>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tasks by title..."
-            className="w-full pl-9 pr-3.5 py-1.5 text-xs bg-surface-bg border border-surface-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand text-content-primary"
+            placeholder="Search by title..."
+            className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Status Filter Tabs & Sort Toggle */}
         <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
-          <div className="flex items-center space-x-1 bg-surface-bg p-1 rounded-lg border border-surface-border text-xs">
-            {['', 'pending', 'running', 'success', 'failed'].map((st) => (
+          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-medium">
+            {[
+              { id: '', label: 'All' },
+              { id: 'pending', label: 'Pending' },
+              { id: 'running', label: 'Running' },
+              { id: 'success', label: 'Success' },
+              { id: 'failed', label: 'Failed' }
+            ].map((tab) => (
               <button
-                key={st || 'all'}
-                onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded-md font-medium capitalize transition-colors ${
-                  statusFilter === st
-                    ? 'bg-white text-brand shadow-xs font-semibold'
-                    : 'text-content-secondary hover:text-content-primary'
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  statusFilter === tab.id
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                {st || 'All'}
+                {tab.label}
               </button>
             ))}
           </div>
 
           <button
             onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-            title="Toggle sort order"
-            className="p-1.5 rounded-lg border border-surface-border bg-white text-content-secondary hover:text-content-primary hover:bg-slate-50 transition-colors"
+            title={`Sort order: ${sortOrder.toUpperCase()}`}
+            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
           >
-            <ArrowUpDown className="w-4 h-4" />
+            <ArrowUpDown className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Task Table */}
-      <div className="mt-4 bg-white rounded-xl border border-surface-border shadow-sm overflow-hidden">
+      <div className="mt-4 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="p-16 text-center text-content-secondary">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand" />
-            <span className="text-xs">Fetching task records...</span>
+          <div className="p-20 text-center text-slate-400">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+            <span className="text-xs font-medium">Loading task logs...</span>
           </div>
         ) : tasks.length === 0 ? (
-          <div className="p-16 text-center">
-            <Layers className="w-8 h-8 mx-auto text-content-muted mb-2" />
-            <h3 className="text-sm font-medium text-content-primary">No tasks match filter</h3>
-            <p className="text-xs text-content-secondary mt-1">Try modifying your search or status criteria.</p>
+          <div className="p-20 text-center">
+            <History className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+            <h3 className="text-sm font-bold text-slate-800">No matching tasks</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              No tasks matched your current search and filter combination.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/70 border-b border-surface-border text-[11px] font-semibold text-content-secondary uppercase tracking-wider">
-                  <th className="px-6 py-3.5">Task Title</th>
-                  <th className="px-6 py-3.5">Operation</th>
-                  <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5">Duration</th>
-                  <th className="px-6 py-3.5">Created At</th>
-                  <th className="px-6 py-3.5 text-right">Action</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4">Task Details</th>
+                  <th className="px-6 py-4">Operation</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Execution Time</th>
+                  <th className="px-6 py-4">Submitted At</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border text-sm">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {tasks.map((t) => (
-                  <tr key={t.taskId} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={t.taskId} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4">
                       <Link
                         to={`/tasks/${t.taskId}`}
-                        className="font-medium text-content-primary hover:text-brand transition-colors line-clamp-1"
+                        className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 text-sm"
                       >
                         {t.title}
                       </Link>
-                      <span className="font-mono text-[11px] text-content-muted block mt-0.5">
+                      <span className="font-mono text-[10px] text-slate-400 block mt-0.5">
                         ID: {t.taskId}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono bg-slate-100 text-content-secondary">
+                      <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         {t.operation}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={t.status} />
+                      <StatusBadge status={t.status} size="xs" />
                     </td>
-                    <td className="px-6 py-4 text-xs font-mono text-content-secondary">
+                    <td className="px-6 py-4 font-mono text-[11px] font-semibold text-slate-600">
                       {calculateDuration(t.startedAt, t.completedAt)}
                     </td>
-                    <td className="px-6 py-4 text-xs font-mono text-content-secondary">
+                    <td className="px-6 py-4 font-mono text-[11px] text-slate-500">
                       {new Date(t.createdAt).toLocaleString([], {
                         dateStyle: 'short',
                         timeStyle: 'medium'
@@ -182,10 +207,10 @@ export const TaskHistoryPage = () => {
                     <td className="px-6 py-4 text-right">
                       <Link
                         to={`/tasks/${t.taskId}`}
-                        className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-brand hover:text-white hover:bg-brand rounded-lg transition-colors border border-brand/20 hover:border-brand"
+                        className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-white hover:bg-blue-600 rounded-lg transition-all border border-blue-200 hover:border-blue-600 shadow-2xs"
                       >
-                        <span>View</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>Inspect</span>
+                        <ArrowRight className="w-3 h-3" />
                       </Link>
                     </td>
                   </tr>
@@ -197,17 +222,17 @@ export const TaskHistoryPage = () => {
 
         {/* Pagination Controls */}
         {pagination.totalPages > 1 && (
-          <div className="px-6 py-3.5 bg-slate-50/50 border-t border-surface-border flex items-center justify-between text-xs text-content-secondary">
+          <div className="px-6 py-4 bg-slate-50/60 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
             <span>
-              Showing page <strong className="text-content-primary">{pagination.currentPage}</strong> of{' '}
-              <strong className="text-content-primary">{pagination.totalPages}</strong> ({pagination.totalTasks} tasks)
+              Showing page <strong className="text-slate-900 font-bold">{pagination.currentPage}</strong> of{' '}
+              <strong className="text-slate-900 font-bold">{pagination.totalPages}</strong> ({pagination.totalTasks} total tasks)
             </span>
 
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => fetchTasks(pagination.currentPage - 1)}
                 disabled={!pagination.hasPrevPage}
-                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md border border-surface-border bg-white text-content-secondary hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 font-semibold disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span>Prev</span>
@@ -216,7 +241,7 @@ export const TaskHistoryPage = () => {
               <button
                 onClick={() => fetchTasks(pagination.currentPage + 1)}
                 disabled={!pagination.hasNextPage}
-                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md border border-surface-border bg-white text-content-secondary hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 font-semibold disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
               >
                 <span>Next</span>
                 <ChevronRight className="w-3.5 h-3.5" />
