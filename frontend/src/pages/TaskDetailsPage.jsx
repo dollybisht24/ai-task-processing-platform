@@ -6,22 +6,16 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import StatusBadge from '../components/StatusBadge';
 import {
   ArrowLeft,
-  RotateCcw,
-  Clock,
+  RotateCw,
   Terminal,
   FileText,
   CheckCircle2,
-  AlertTriangle,
+  AlertCircle,
   Loader2,
   Copy,
   Check,
   Download,
-  Filter,
-  Search,
-  Cpu,
-  Layers,
-  Sparkles,
-  Zap
+  Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -29,7 +23,9 @@ export const TaskDetailsPage = () => {
   const { id } = useParams();
   const [retrying, setRetrying] = useState(false);
   const [copiedResult, setCopiedResult] = useState(false);
+  const [copiedInput, setCopiedInput] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const [logFilter, setLogFilter] = useState('ALL');
   const [logSearch, setLogSearch] = useState('');
 
@@ -42,7 +38,7 @@ export const TaskDetailsPage = () => {
     }
   }, [id]);
 
-  // Adaptive real-time polling: polls every 1.5s while pending/running, halts immediately on success/failed
+  // Adaptive real-time polling
   const { task, loading, error, errorStatus, refetch } = useTaskPolling(id, null, 1500, handleComplete);
 
   const handleRetry = async () => {
@@ -58,24 +54,12 @@ export const TaskDetailsPage = () => {
     }
   };
 
-  const copyResult = () => {
-    if (task?.result !== null && task?.result !== undefined) {
-      navigator.clipboard.writeText(String(task.result));
-      setCopiedResult(true);
-      toast.success('Result copied to clipboard');
-      setTimeout(() => setCopiedResult(false), 2000);
-    }
-  };
-
-  const copyAllLogs = () => {
-    if (!task?.logs || task.logs.length === 0) return;
-    const formatted = task.logs
-      .map((l) => `[${new Date(l.timestamp).toISOString()}] [${l.level}] ${l.message}`)
-      .join('\n');
-    navigator.clipboard.writeText(formatted);
-    setCopiedLogs(true);
-    toast.success('All logs copied to clipboard');
-    setTimeout(() => setCopiedLogs(false), 2000);
+  const copyToClipboard = (text, setCopiedFn, label) => {
+    if (!text) return;
+    navigator.clipboard.writeText(String(text));
+    setCopiedFn(true);
+    toast.success(`${label} copied to clipboard`);
+    setTimeout(() => setCopiedFn(false), 2000);
   };
 
   const downloadLogs = () => {
@@ -87,7 +71,7 @@ export const TaskDetailsPage = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `task-${task.taskId}-logs.txt`;
+    link.download = `task-${task.taskId || id}-logs.txt`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success('Logs downloaded');
@@ -115,10 +99,9 @@ export const TaskDetailsPage = () => {
   if (loading && !task) {
     return (
       <DashboardLayout>
-        <div className="p-24 text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-3" />
-          <p className="text-sm font-semibold text-slate-700">Connecting to task telemetry stream...</p>
-          <span className="text-xs text-slate-400 font-mono mt-1 block">Task ID: {id}</span>
+        <div className="py-24 text-center">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-3" />
+          <p className="text-sm font-medium text-slate-600">Loading task...</p>
         </div>
       </DashboardLayout>
     );
@@ -128,29 +111,29 @@ export const TaskDetailsPage = () => {
     const isRateLimited = errorStatus === 429;
     return (
       <DashboardLayout>
-        <div className="p-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto">
-          <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-slate-900">
+        <div className="p-12 text-center bg-white rounded-xl border border-slate-200 max-w-md mx-auto my-8">
+          <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-3" />
+          <h2 className="text-base font-semibold text-slate-900">
             {isRateLimited ? 'Requests Temporarily Limited' : 'Task Not Found'}
           </h2>
-          <p className="text-xs text-slate-500 mt-1">{error || 'Unable to locate task with specified ID.'}</p>
-          {isRateLimited && (
-            <button
-              type="button"
-              onClick={refetch}
-              className="inline-flex items-center space-x-2 mt-4 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition-all"
+          <p className="text-xs text-slate-500 mt-1">{error || 'Unable to locate task.'}</p>
+          <div className="mt-5 flex items-center justify-center gap-3">
+            {isRateLimited && (
+              <button
+                type="button"
+                onClick={refetch}
+                className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-md text-xs font-medium"
+              >
+                Try Again
+              </button>
+            )}
+            <Link
+              to="/tasks"
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-medium"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Try Again</span>
-            </button>
-          )}
-          <Link
-            to="/tasks"
-            className="inline-flex items-center space-x-2 mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Return to History</span>
-          </Link>
+              Return to Tasks
+            </Link>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -160,136 +143,136 @@ export const TaskDetailsPage = () => {
 
   return (
     <DashboardLayout>
-      {/* Top Header & Breadcrumb */}
-      <div className="pb-6 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Bar */}
+      <div className="pb-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <Link
             to="/tasks"
-            className="inline-flex items-center space-x-1.5 text-xs text-slate-500 hover:text-blue-600 font-semibold mb-2 transition-colors"
+            className="inline-flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-900 font-medium mb-2 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Task History</span>
+            <span>Back to Tasks</span>
           </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">{task.title}</h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">{task.title}</h1>
             <StatusBadge status={task.status} size="sm" />
-          </div>
-          <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400 font-mono">
-            <span>ID: {task.taskId}</span>
-            <span>•</span>
-            <span>Stream: tasks:stream</span>
+            <span className="text-[11px] font-mono font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+              {task.operation}
+            </span>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center space-x-2.5">
+        {/* Action Buttons */}
+        <div className="flex items-center space-x-2">
           {task.status === 'failed' && (
             <button
               onClick={handleRetry}
               disabled={retrying}
-              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
             >
-              <RotateCcw className={`w-3.5 h-3.5 ${retrying ? 'animate-spin' : ''}`} />
-              <span>{retrying ? 'Re-enqueuing...' : 'Retry Task'}</span>
+              <RotateCw className={`w-3.5 h-3.5 ${retrying ? 'animate-spin' : ''}`} />
+              <span>{retrying ? 'Retrying...' : 'Retry Task'}</span>
             </button>
           )}
 
           <button
             onClick={() => refetch()}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-all active:scale-95"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCw className="w-3.5 h-3.5 text-slate-500" />
             <span>Sync</span>
           </button>
         </div>
       </div>
 
-      {/* Main Content Grid */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Left Column (2 Cols): Payload, Results, and Terminal Console */}
+        {/* Left Column (2 Cols): Payload, Output, Logs */}
         <div className="lg:col-span-2 space-y-6">
           {/* Input Text Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-3">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
-                <FileText className="w-4 h-4 text-blue-600" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                <FileText className="w-4 h-4 text-slate-500" />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Input Payload
                 </h3>
               </div>
-              <span className="font-mono text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
-                {task.operation}
-              </span>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(task.inputText, setCopiedInput, 'Input payload')}
+                className="inline-flex items-center space-x-1 text-xs text-slate-500 hover:text-slate-800"
+              >
+                {copiedInput ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedInput ? 'Copied' : 'Copy'}</span>
+              </button>
             </div>
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-xs font-mono text-slate-800 whitespace-pre-wrap break-words max-h-56 overflow-y-auto leading-relaxed">
+            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 text-xs font-mono text-slate-800 whitespace-pre-wrap break-words max-h-52 overflow-y-auto leading-relaxed">
               {task.inputText}
             </div>
           </div>
 
-          {/* Result Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-3">
+          {/* Execution Result Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <CheckCircle2
                   className={`w-4 h-4 ${task.status === 'success' ? 'text-emerald-600' : 'text-slate-400'}`}
                 />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Execution Output
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Output Result
                 </h3>
               </div>
 
-              {task.result !== null && (
+              {task.result !== null && task.result !== undefined && (
                 <button
-                  onClick={copyResult}
-                  className="inline-flex items-center space-x-1.5 text-xs text-blue-600 hover:text-blue-700 font-semibold px-2 py-1 rounded-md hover:bg-blue-50 transition-colors"
+                  type="button"
+                  onClick={() => copyToClipboard(task.result, setCopiedResult, 'Result')}
+                  className="inline-flex items-center space-x-1 text-xs text-slate-500 hover:text-slate-800"
                 >
                   {copiedResult ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedResult ? 'Copied' : 'Copy Result'}</span>
+                  <span>{copiedResult ? 'Copied' : 'Copy'}</span>
                 </button>
               )}
             </div>
 
             {task.status === 'success' ? (
-              <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs font-mono font-medium text-emerald-950 whitespace-pre-wrap break-words leading-relaxed shadow-2xs">
+              <div className="p-3.5 bg-emerald-50/60 border border-emerald-200 rounded-lg text-xs font-mono font-medium text-emerald-950 whitespace-pre-wrap break-words leading-relaxed">
                 {String(task.result)}
               </div>
             ) : task.status === 'failed' ? (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl">
-                <div className="flex items-start space-x-2.5 text-rose-900 text-xs font-medium">
-                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-rose-600" />
-                  <div>
-                    <span className="font-bold">Execution Failed: </span>
-                    <span>{task.errorMessage || 'An error occurred during Python worker execution.'}</span>
-                  </div>
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg flex items-start space-x-2 text-rose-800 text-xs">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-rose-600" />
+                <div>
+                  <span className="font-semibold">Execution Failed: </span>
+                  <span>{task.errorMessage || 'An error occurred during execution.'}</span>
                 </div>
               </div>
             ) : (
-              <div className="p-8 text-center bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
-                <p className="text-xs font-medium text-slate-600">
+              <div className="p-6 text-center bg-slate-50 rounded-lg border border-slate-200">
+                <Loader2 className="w-5 h-5 animate-spin mx-auto text-blue-600 mb-2" />
+                <p className="text-xs text-slate-600">
                   {task.status === 'pending'
-                    ? 'Job is queued in Redis Streams awaiting an available worker replica...'
+                    ? 'Job is queued in Redis Streams awaiting background worker...'
                     : 'Python worker is currently processing text payload...'}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Execution Logs Console (Datadog / CloudWatch Style) */}
-          <div className="bg-[#0B132B] rounded-2xl border border-slate-800 shadow-lg overflow-hidden">
-            {/* Console Toolbar */}
-            <div className="px-5 py-3.5 bg-[#070D1E] border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center space-x-2 text-slate-200">
-                <Terminal className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-mono font-bold tracking-wider uppercase text-slate-100">
-                  Execution Telemetry Stream
-                </span>
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700">
+          {/* Execution Logs Terminal */}
+          <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden text-slate-200">
+            {/* Terminal Header */}
+            <div className="px-4 py-3 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <Terminal className="w-4 h-4 text-slate-400" />
+                <span className="text-xs font-medium text-slate-200">Execution Logs</span>
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
                   {task.logs?.length || 0} events
                 </span>
               </div>
 
-              {/* Log Controls: Search & Level Filter */}
+              {/* Controls */}
               <div className="flex items-center space-x-2">
                 <div className="relative">
                   <input
@@ -297,19 +280,20 @@ export const TaskDetailsPage = () => {
                     value={logSearch}
                     onChange={(e) => setLogSearch(e.target.value)}
                     placeholder="Search logs..."
-                    className="pl-7 pr-2.5 py-1 text-[11px] bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 font-mono w-32 sm:w-40"
+                    className="pl-7 pr-2.5 py-1 text-[11px] bg-slate-800 border border-slate-700 rounded text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-slate-500 font-mono w-28 sm:w-36"
                   />
                   <Search className="w-3 h-3 text-slate-500 absolute left-2 top-2" />
                 </div>
 
-                <div className="flex items-center space-x-1 bg-slate-900 border border-slate-700 p-0.5 rounded-lg text-[10px] font-mono">
+                <div className="flex items-center space-x-0.5 bg-slate-800 border border-slate-700 p-0.5 rounded text-[10px]">
                   {['ALL', 'INFO', 'WARN', 'ERROR'].map((lvl) => (
                     <button
                       key={lvl}
+                      type="button"
                       onClick={() => setLogFilter(lvl)}
-                      className={`px-2 py-0.5 rounded font-bold transition-colors ${
+                      className={`px-1.5 py-0.5 rounded font-medium transition-colors ${
                         logFilter === lvl
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-slate-700 text-white'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -319,36 +303,44 @@ export const TaskDetailsPage = () => {
                 </div>
 
                 <button
-                  onClick={copyAllLogs}
-                  title="Copy all logs"
-                  className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  type="button"
+                  onClick={() => {
+                    if (!task?.logs || task.logs.length === 0) return;
+                    const text = task.logs
+                      .map((l) => `[${new Date(l.timestamp).toISOString()}] [${l.level}] ${l.message}`)
+                      .join('\n');
+                    copyToClipboard(text, setCopiedLogs, 'All logs');
+                  }}
+                  title="Copy logs"
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800"
                 >
                   {copiedLogs ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
 
                 <button
+                  type="button"
                   onClick={downloadLogs}
-                  title="Download log file"
-                  className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  title="Download logs"
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800"
                 >
                   <Download className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* Console Log Stream */}
-            <div className="p-4 font-mono text-xs text-slate-200 space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+            {/* Terminal Body */}
+            <div className="p-4 font-mono text-xs space-y-1.5 max-h-72 overflow-y-auto">
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log, index) => {
                   const levelBadge = {
-                    INFO: 'text-blue-400 bg-blue-950/60 border-blue-800/80',
-                    WARN: 'text-amber-400 bg-amber-950/60 border-amber-800/80',
-                    ERROR: 'text-rose-400 bg-rose-950/60 border-rose-800/80',
-                    DEBUG: 'text-slate-400 bg-slate-950/60 border-slate-800'
-                  }[log.level] || 'text-blue-400 bg-blue-950/60 border-blue-800/80';
+                    INFO: 'text-blue-400 bg-blue-950/80 border-blue-900',
+                    WARN: 'text-amber-400 bg-amber-950/80 border-amber-900',
+                    ERROR: 'text-rose-400 bg-rose-950/80 border-rose-900',
+                    DEBUG: 'text-slate-400 bg-slate-800 border-slate-700'
+                  }[log.level] || 'text-slate-400 bg-slate-800 border-slate-700';
 
                   return (
-                    <div key={index} className="flex items-start space-x-2.5 leading-relaxed font-mono">
+                    <div key={index} className="flex items-start space-x-2 leading-relaxed">
                       <span className="text-slate-500 shrink-0 text-[11px] select-none">
                         {new Date(log.timestamp).toLocaleTimeString([], {
                           hour12: false,
@@ -358,18 +350,18 @@ export const TaskDetailsPage = () => {
                         })}
                       </span>
 
-                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border shrink-0 ${levelBadge}`}>
+                      <span className={`text-[10px] font-semibold px-1 py-0.2 rounded border shrink-0 ${levelBadge}`}>
                         {log.level}
                       </span>
 
-                      <span className="text-slate-200 break-words">{log.message}</span>
+                      <span className="text-slate-300 break-words">{log.message}</span>
                     </div>
                   );
                 })
               ) : (
                 <div className="text-slate-500 italic py-4 text-center">
                   {task.logs?.length === 0
-                    ? 'Waiting for worker process to begin...'
+                    ? 'No execution logs recorded yet.'
                     : 'No log lines match current search/filter.'}
                 </div>
               )}
@@ -377,69 +369,76 @@ export const TaskDetailsPage = () => {
           </div>
         </div>
 
-        {/* Right Column: Execution Telemetry Card */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center justify-between">
-              <span>Task Audit Telemetry</span>
-              <Cpu className="w-4 h-4 text-blue-600" />
+        {/* Right Column: Task Metadata */}
+        <div>
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 mb-4 pb-3 border-b border-slate-100">
+              Task Details
             </h3>
 
-            <dl className="space-y-4 text-xs">
+            <dl className="space-y-3.5 text-xs">
               <div>
-                <dt className="text-slate-400 font-medium">Lifecycle Status</dt>
+                <dt className="text-slate-400 font-medium">Task ID</dt>
+                <dd className="mt-1 flex items-center space-x-1.5">
+                  <span className="font-mono text-slate-800 text-[11px] truncate max-w-[200px]">
+                    {task.taskId || id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(task.taskId || id, setCopiedId, 'Task ID')}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                    title="Copy Task ID"
+                  >
+                    {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-slate-400 font-medium">Status</dt>
                 <dd className="mt-1">
                   <StatusBadge status={task.status} />
                 </dd>
               </div>
 
               <div>
-                <dt className="text-slate-400 font-medium">Text Operation</dt>
-                <dd className="mt-1 font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded inline-block">
+                <dt className="text-slate-400 font-medium">Operation</dt>
+                <dd className="mt-1 font-mono font-medium text-slate-900">
                   {task.operation}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-slate-400 font-medium">Retry Attempts</dt>
-                <dd className="mt-1 font-mono font-bold text-slate-900">
-                  {task.retryCount || 0}
                 </dd>
               </div>
 
               {duration && (
                 <div>
-                  <dt className="text-slate-400 font-medium">Worker Execution Duration</dt>
-                  <dd className="mt-1 font-mono font-black text-blue-600 text-sm">
+                  <dt className="text-slate-400 font-medium">Execution Duration</dt>
+                  <dd className="mt-1 font-mono font-semibold text-emerald-600">
                     {duration}
                   </dd>
                 </div>
               )}
 
               <div>
-                <dt className="text-slate-400 font-medium">Created (Enqueued)</dt>
-                <dd className="mt-1 font-mono text-slate-700">
+                <dt className="text-slate-400 font-medium">Created</dt>
+                <dd className="mt-1 text-slate-700">
                   {new Date(task.createdAt).toLocaleString()}
                 </dd>
               </div>
 
-              {task.startedAt && (
-                <div>
-                  <dt className="text-slate-400 font-medium">Worker Picked Up</dt>
-                  <dd className="mt-1 font-mono text-slate-700">
-                    {new Date(task.startedAt).toLocaleString()}
-                  </dd>
-                </div>
-              )}
-
               {task.completedAt && (
                 <div>
-                  <dt className="text-slate-400 font-medium">Completed At</dt>
-                  <dd className="mt-1 font-mono text-slate-700">
+                  <dt className="text-slate-400 font-medium">Completed</dt>
+                  <dd className="mt-1 text-slate-700">
                     {new Date(task.completedAt).toLocaleString()}
                   </dd>
                 </div>
               )}
+
+              <div>
+                <dt className="text-slate-400 font-medium">Queue Stream</dt>
+                <dd className="mt-1 font-mono text-slate-600">
+                  tasks:stream
+                </dd>
+              </div>
             </dl>
           </div>
         </div>

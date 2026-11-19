@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Cpu, User, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Layers, User, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const RegisterPage = () => {
@@ -23,23 +23,6 @@ export const RegisterPage = () => {
       [e.target.name]: e.target.value
     }));
   };
-
-  // Password strength calculation
-  const getPasswordStrength = (pwd) => {
-    if (!pwd) return { level: 0, label: '', color: 'bg-slate-200' };
-    let score = 0;
-    if (pwd.length >= 6) score += 1;
-    if (pwd.length >= 8) score += 1;
-    if (/[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-
-    if (score <= 1) return { level: 1, label: 'Weak', color: 'bg-rose-500' };
-    if (score === 2) return { level: 2, label: 'Fair', color: 'bg-amber-500' };
-    if (score === 3) return { level: 3, label: 'Good', color: 'bg-blue-500' };
-    return { level: 4, label: 'Strong', color: 'bg-emerald-500' };
-  };
-
-  const strength = getPasswordStrength(formData.password);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,32 +49,32 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
       {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link to="/" className="inline-flex items-center space-x-3 mb-6 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 group-hover:scale-105 transition-all">
-            <Cpu className="w-6 h-6" />
+        <Link to="/" className="inline-flex items-center space-x-2.5 mb-6 group">
+          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs group-hover:bg-blue-500 transition-colors">
+            <Layers className="w-5 h-5" />
           </div>
-          <span className="font-extrabold text-xl text-slate-900 tracking-tight">AI Task Platform</span>
+          <span className="font-bold text-lg text-slate-900 tracking-tight">AI Task Platform</span>
         </Link>
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-          Create an enterprise account
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+          Create an account
         </h2>
         <p className="mt-1 text-xs text-slate-500">
           Get started with distributed queue processing and Python workers
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-sm border border-slate-200/80 rounded-2xl sm:px-10">
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-6 border border-slate-200 rounded-xl sm:px-10">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Full Name
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <User className="h-4 w-4" />
                 </div>
                 <input
@@ -100,18 +83,18 @@ export const RegisterPage = () => {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  placeholder="Jane Doe"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all shadow-2xs"
+                  placeholder="Alex Morgan"
+                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Work Email
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <Mail className="h-4 w-4" />
                 </div>
                 <input
@@ -120,18 +103,18 @@ export const RegisterPage = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  placeholder="jane@company.com"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all shadow-2xs"
+                  placeholder="alex@company.com"
+                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
@@ -140,9 +123,8 @@ export const RegisterPage = () => {
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  minLength={6}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all shadow-2xs"
+                  placeholder="At least 6 characters"
+                  className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
                 />
                 <button
                   type="button"
@@ -152,41 +134,24 @@ export const RegisterPage = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-
-              {/* Password Strength Meter */}
-              {formData.password && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium mb-1">
-                    <span>Password Strength:</span>
-                    <span className="font-bold">{strength.label}</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full flex overflow-hidden">
-                    <div
-                      className={`h-full ${strength.color} transition-all duration-300`}
-                      style={{ width: `${(strength.level / 4) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Confirm Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  minLength={6}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-900 placeholder:text-slate-400 font-medium transition-all shadow-2xs"
+                  placeholder="Re-enter password"
+                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 text-slate-900 placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -195,7 +160,7 @@ export const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center space-x-2 py-2.5 px-4 rounded-xl shadow-sm text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all active:scale-95"
+                className="w-full flex justify-center items-center space-x-2 py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none transition-colors disabled:opacity-50"
               >
                 {loading ? (
                   <>
@@ -204,7 +169,7 @@ export const RegisterPage = () => {
                   </>
                 ) : (
                   <>
-                    <span>Create Enterprise Account</span>
+                    <span>Create Account</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -214,7 +179,7 @@ export const RegisterPage = () => {
 
           <div className="mt-6 text-center text-xs text-slate-500 pt-4 border-t border-slate-100">
             <span>Already have an account? </span>
-            <Link to="/login" className="font-bold text-blue-600 hover:underline">
+            <Link to="/login" className="font-semibold text-blue-600 hover:underline">
               Sign in
             </Link>
           </div>

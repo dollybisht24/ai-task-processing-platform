@@ -40,14 +40,11 @@ export const LandingPage = () => {
       {/* Top Header */}
       <nav className="border-b border-slate-200/80 bg-white/90 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20">
-              <Cpu className="w-5 h-5" />
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
+              <Layers className="w-4 h-4" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-base tracking-tight text-slate-900">AI Task Platform</span>
-              <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">Async Engine</span>
-            </div>
+            <span className="font-bold text-sm tracking-tight text-slate-900">AI Task Platform</span>
           </div>
 
           <div className="flex items-center space-x-3">
