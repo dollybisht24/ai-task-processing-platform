@@ -4,6 +4,7 @@ import { taskService } from '../services/api';
 /**
  * Custom hook to poll task status adaptively in real time.
  * Halts polling immediately when terminal status (success or failed) is reached.
+ * Guarantees onComplete fires exactly once per terminal execution lifecycle.
  */
 export const useTaskPolling = (taskId, initialTask = null, intervalMs = 1500, onComplete = null) => {
   const [task, setTask] = useState(initialTask);
@@ -12,10 +13,24 @@ export const useTaskPolling = (taskId, initialTask = null, intervalMs = 1500, on
   const [errorStatus, setErrorStatus] = useState(null);
   const timerRef = useRef(null);
   const onCompleteRef = useRef(onComplete);
+  const hasCompletedRef = useRef(false);
 
+  // Keep callback reference updated without triggering re-fetch
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  // Reset completion latch when taskId changes
+  useEffect(() => {
+    hasCompletedRef.current = false;
+  }, [taskId]);
+
+  const clearPollingTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -29,12 +44,14 @@ export const useTaskPolling = (taskId, initialTask = null, intervalMs = 1500, on
 
       // Stop polling once finished
       if (updated.status === 'success' || updated.status === 'failed') {
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-        if (onCompleteRef.current) {
-          onCompleteRef.current(updated);
+        clearPollingTimer();
+
+        // Fire onComplete exactly once
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          if (onCompleteRef.current) {
+            onCompleteRef.current(updated);
+          }
         }
       }
     } catch (err) {
@@ -48,12 +65,15 @@ export const useTaskPolling = (taskId, initialTask = null, intervalMs = 1500, on
         setError(err.response?.data?.message || 'Failed to poll task status');
       }
       setLoading(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      clearPollingTimer();
     }
-  }, [taskId]);
+  }, [taskId, clearPollingTimer]);
+
+  const manualRefetch = useCallback(() => {
+    hasCompletedRef.current = false;
+    clearPollingTimer();
+    return fetchTask();
+  }, [fetchTask, clearPollingTimer]);
 
   useEffect(() => {
     if (!taskId) return;
@@ -61,15 +81,13 @@ export const useTaskPolling = (taskId, initialTask = null, intervalMs = 1500, on
     fetchTask();
 
     // Start polling interval
+    clearPollingTimer();
     timerRef.current = setInterval(fetchTask, intervalMs);
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      clearPollingTimer();
     };
-  }, [taskId, intervalMs, fetchTask]);
+  }, [taskId, intervalMs, fetchTask, clearPollingTimer]);
 
-  return { task, loading, error, errorStatus, refetch: fetchTask };
+  return { task, loading, error, errorStatus, refetch: manualRefetch };
 };

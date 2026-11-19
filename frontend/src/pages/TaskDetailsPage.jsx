@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTaskPolling } from '../hooks/useTaskPolling';
 import { taskService } from '../services/api';
@@ -33,14 +33,17 @@ export const TaskDetailsPage = () => {
   const [logFilter, setLogFilter] = useState('ALL');
   const [logSearch, setLogSearch] = useState('');
 
-  // Adaptive real-time polling: polls every 1.5s while pending/running, halts immediately on success/failed
-  const { task, loading, error, errorStatus, refetch } = useTaskPolling(id, null, 1500, (completed) => {
+  // Handle task completion notification exactly once with unique toast ID
+  const handleComplete = useCallback((completed) => {
     if (completed.status === 'success') {
-      toast.success('Task execution completed successfully!');
+      toast.success('Task execution completed successfully!', { id: `task-status-${id}` });
     } else if (completed.status === 'failed') {
-      toast.error('Task execution failed.');
+      toast.error('Task execution failed.', { id: `task-status-${id}` });
     }
-  });
+  }, [id]);
+
+  // Adaptive real-time polling: polls every 1.5s while pending/running, halts immediately on success/failed
+  const { task, loading, error, errorStatus, refetch } = useTaskPolling(id, null, 1500, handleComplete);
 
   const handleRetry = async () => {
     try {
