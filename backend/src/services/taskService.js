@@ -2,6 +2,25 @@ const Task = require('../models/Task');
 const queueService = require('./queueService');
 const logger = require('../utils/logger');
 
+const recordQueueFailure = async (task, error, action) => {
+  const message = `Failed to ${action} task in Redis queue: ${error.message}`;
+  logger.error(`Task ${task._id}: ${message}`);
+  task.status = 'failed';
+  task.errorMessage = message;
+  task.completedAt = new Date();
+  task.logs.push({
+    timestamp: new Date(),
+    message,
+    level: 'ERROR'
+  });
+  await task.save();
+
+  error.statusCode = 503;
+  error.isOperational = true;
+  error.message = 'Task could not be submitted because the queue is unavailable.';
+  throw error;
+};
+
 const createTask = async (userId, { title, inputText, operation }) => {
   const task = await Task.create({
     userId,
@@ -25,14 +44,7 @@ const createTask = async (userId, { title, inputText, operation }) => {
       retryCount: 0
     });
   } catch (queueErr) {
-    logger.error(`Error enqueuing task ${task._id} to Redis: ${queueErr.message}`);
-    // Append failure log entry but don't delete record
-    task.logs.push({
-      timestamp: new Date(),
-      message: `Failed to enqueue task into Redis queue: ${queueErr.message}`,
-      level: 'ERROR'
-    });
-    await task.save();
+    await recordQueueFailure(task, queueErr, 'enqueue');
   }
 
   return task.toClientFormat();
@@ -167,11 +179,15 @@ const retryTask = async (userId, taskId) => {
   await task.save();
 
   // Re-enqueue into Redis stream
-  await queueService.enqueueTask({
-    taskId: task._id,
-    operation: task.operation,
-    retryCount: task.retryCount
-  });
+  try {
+    await queueService.enqueueTask({
+      taskId: task._id,
+      operation: task.operation,
+      retryCount: task.retryCount
+    });
+  } catch (queueErr) {
+    await recordQueueFailure(task, queueErr, 'retry');
+  }
 
   return task.toClientFormat();
 };

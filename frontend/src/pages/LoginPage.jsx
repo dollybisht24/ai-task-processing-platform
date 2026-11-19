@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Cpu, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, Sparkles, CheckCircle2 } from 'lucide-react';
@@ -13,6 +13,7 @@ export const LoginPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -23,6 +24,8 @@ export const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     try {
       setLoading(true);
       await login(formData);
@@ -30,11 +33,14 @@ export const LoginPage = () => {
     } catch (err) {
       // Error handled by AuthContext toast
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
 
   const handleDemoLogin = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setFormData({
       email: 'demo@aitaskplatform.internal',
       password: 'DemoPassword123!'
@@ -51,6 +57,7 @@ export const LoginPage = () => {
       // If demo user doesn't exist yet, we will auto-register them
       navigate('/register');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };

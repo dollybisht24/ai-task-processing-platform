@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     MONGODB_DATABASE: str = os.getenv("MONGODB_DATABASE", "ai_task_platform")
 
     # Processing limits & timeouts
-    CLAIM_MIN_IDLE_TIME_MS: int = int(os.getenv("CLAIM_MIN_IDLE_TIME_MS", "30000")) # 30s
-    POLL_BLOCK_MS: int = int(os.getenv("POLL_BLOCK_MS", "2000")) # 2s block
+    CLAIM_MIN_IDLE_TIME_MS: int = int(os.getenv("CLAIM_MIN_IDLE_TIME_MS", "30000"))  # 30s
+    POLL_BLOCK_MS: int = int(os.getenv("POLL_BLOCK_MS", "2000"))  # 2s block
     MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "3"))
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

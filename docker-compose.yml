@@ -4,7 +4,6 @@ services:
   # ==========================================
   mongodb:
     image: mongo:7.0
-    container_name: ai_task_mongodb
     restart: unless-stopped
     ports:
       - "${HOST_MONGO_PORT:-27018}:27017"
@@ -24,7 +23,6 @@ services:
   # ==========================================
   redis:
     image: redis:7-alpine
-    container_name: ai_task_redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
@@ -47,7 +45,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ai_task_backend
     restart: unless-stopped
     ports:
       - "${HOST_BACKEND_PORT:-5001}:5000"
@@ -58,7 +55,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/ai_task_platform
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - JWT_SECRET=production_enterprise_super_secret_jwt_key_at_least_32_chars
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your .env file}
       - JWT_EXPIRES_IN=7d
       - STREAM_KEY=tasks:stream
       - CONSUMER_GROUP=task_workers
@@ -68,7 +65,9 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ai-platform-net
+      ai-platform-net:
+        aliases:
+          - backend-service
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/api/health"]
       interval: 15s
@@ -110,17 +109,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ai_task_frontend
     restart: unless-stopped
     ports:
-      - "${HOST_FRONTEND_PORT:-8080}:80"
+      - "${HOST_FRONTEND_PORT:-8080}:8080"
     depends_on:
       backend:
         condition: service_healthy
     networks:
       - ai-platform-net
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/"]
       interval: 15s
       timeout: 5s
       retries: 3

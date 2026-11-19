@@ -12,6 +12,9 @@ const healthRoutes = require('./routes/healthRoutes');
 
 const app = express();
 
+// Enable trust proxy (Nginx / Kubernetes Ingress) so req.ip and rate-limiters use real client IP
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
@@ -38,13 +41,15 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(cookieParser());
 
-// Rate limiter on API endpoints (disabled in test environment)
+// 1. Health check endpoints (unthrottled for Docker & K8s probes)
+app.use('/api', healthRoutes);
+
+// 2. Rate limiter on application endpoints (disabled in test environment)
 if (env.NODE_ENV !== 'test') {
   app.use('/api', apiLimiter);
 }
 
-// Route Registration
-app.use('/api', healthRoutes);
+// 3. Application Route Registration
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 

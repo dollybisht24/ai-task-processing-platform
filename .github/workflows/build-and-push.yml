@@ -15,11 +15,16 @@ on:
           - production
 
 jobs:
+  checks:
+    name: Run CI checks
+    uses: ./.github/workflows/ci.yml
+
   # ==========================================
   # Build & Push Docker Images
   # ==========================================
   build-and-push:
     name: Build & Push Container Images
+    needs: checks
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.vars.outputs.sha_short }}
@@ -86,16 +91,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/ai-task-processing-infra
-          token: ${{ secrets.GITOPS_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITOPS_TOKEN }}
           path: infra-repo
 
       - name: Update Staging Image Tags via Kustomize
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           cd infra-repo/kubernetes/overlays/staging
           TAG="${{ needs.build-and-push.outputs.image_tag }}"
           
           # Update tags in kustomization.yaml
           sed -i "s/newTag: .*/newTag: $TAG/g" kustomization.yaml
+          sed -i "s|newName: .*ai-task-backend|newName: ${DOCKERHUB_USERNAME}/ai-task-backend|" kustomization.yaml
+          sed -i "s|newName: .*ai-task-worker|newName: ${DOCKERHUB_USERNAME}/ai-task-worker|" kustomization.yaml
+          sed -i "s|newName: .*ai-task-frontend|newName: ${DOCKERHUB_USERNAME}/ai-task-frontend|" kustomization.yaml
 
       - name: Commit and Push to Infrastructure Repository
         run: |
@@ -120,15 +130,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/ai-task-processing-infra
-          token: ${{ secrets.GITOPS_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITOPS_TOKEN }}
           path: infra-repo
 
       - name: Update Production Image Tags via Kustomize
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           cd infra-repo/kubernetes/overlays/production
           TAG="${{ needs.build-and-push.outputs.image_tag }}"
           
           sed -i "s/newTag: .*/newTag: $TAG/g" kustomization.yaml
+          sed -i "s|newName: .*ai-task-backend|newName: ${DOCKERHUB_USERNAME}/ai-task-backend|" kustomization.yaml
+          sed -i "s|newName: .*ai-task-worker|newName: ${DOCKERHUB_USERNAME}/ai-task-worker|" kustomization.yaml
+          sed -i "s|newName: .*ai-task-frontend|newName: ${DOCKERHUB_USERNAME}/ai-task-frontend|" kustomization.yaml
 
       - name: Commit and Push Production Release
         run: |

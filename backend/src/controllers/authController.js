@@ -37,7 +37,8 @@ const login = async (req, res, next) => {
 };
 
 const logout = async (req, res) => {
-  const { maxAge, ...clearOptions } = authService.getCookieOptions();
+  const clearOptions = authService.getCookieOptions();
+  delete clearOptions.maxAge;
   res.clearCookie('token', clearOptions);
   return successResponse(res, null, 'Logged out successfully');
 };

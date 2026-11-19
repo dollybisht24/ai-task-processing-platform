@@ -15,10 +15,7 @@ RUN npm run build
 # ==========================================
 # Stage 2: Serve with Nginx Alpine (Ultra lightweight runner)
 # ==========================================
-FROM nginx:1.27-alpine AS runner
-
-# Remove default nginx html
-RUN rm -rf /usr/share/nginx/html/*
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runner
 
 # Copy built assets from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -26,9 +23,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+USER nginx
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

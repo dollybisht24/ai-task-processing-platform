@@ -3,9 +3,7 @@ const { getRedisClient, disconnectRedis } = require('../config/redis');
 
 // Set environment for testing
 process.env.NODE_ENV = 'test';
-process.env.MONGODB_URI = 'mongodb://localhost:27017/ai_task_platform_test';
-process.env.JWT_SECRET = 'test_secret_key_for_testing_purposes_only';
-
+process.env.MONGODB_URI ||= 'mongodb://localhost:27017/ai_task_platform_test';
 beforeAll(async () => {
   if (mongoose.connection.readyState === 0) {
     await mongoose.connect(process.env.MONGODB_URI);

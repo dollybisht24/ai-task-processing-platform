@@ -20,7 +20,7 @@ flowchart TD
     
     subgraph API Management Tier
         Ingress -->|/api/* REST Traffic| BackendCluster[Node.js / Express API Cluster]
-        BackendCluster -->|Auth & Task State| MongoCluster[(MongoDB Primary / Replica)]
+        BackendCluster -->|Auth & Task State| MongoDB[(MongoDB)]
         BackendCluster -->|XADD Stream Tasks| RedisStream[(Redis Streams Buffer)]
     end
     
@@ -33,9 +33,9 @@ flowchart TD
         RedisStream -->|XREADGROUP task_workers| WorkerPod2
         RedisStream -->|XREADGROUP task_workers| WorkerPodN
         
-        WorkerPod1 -->|Atomic State: running -> success/failed| MongoCluster
-        WorkerPod2 -->|Atomic State: running -> success/failed| MongoCluster
-        WorkerPodN -->|Atomic State: running -> success/failed| MongoCluster
+        WorkerPod1 -->|Atomic State: running -> success/failed| MongoDB
+        WorkerPod2 -->|Atomic State: running -> success/failed| MongoDB
+        WorkerPodN -->|Atomic State: running -> success/failed| MongoDB
         
         WorkerPod1 -->|XACK / XAUTOCLAIM| RedisStream
         WorkerPod2 -->|XACK / XAUTOCLAIM| RedisStream
@@ -101,7 +101,7 @@ flowchart TD
    - Each worker pod identifies itself with a unique consumer name: `worker-$(POD_NAME)`.
    - Using `XREADGROUP GROUP task_workers worker-<id> BLOCK 2000 COUNT 1 STREAMS tasks:stream >`:
      - The special ID `>` guarantees that the message has **never been delivered to any other worker** in the group.
-     - Race conditions and duplicate executions are mathematically prevented by Redis's single-threaded event loop.
+     - New messages are assigned to one consumer in the group. Delivery is at-least-once: a reclaimed or unacknowledged message can be processed again, so task updates must remain idempotent.
 
 2. **Pending Entries List (PEL) & Acknowledgment (`XACK`)**:
    - Once a message is delivered to a worker, Redis places it in the group's Pending Entries List (PEL).
@@ -113,7 +113,7 @@ flowchart TD
      ```
      XAUTOCLAIM tasks:stream task_workers <worker_id> 30000 0-0 COUNT 5
      ```
-   - Any message idle in the PEL for longer than 30 seconds (`CLAIM_MIN_IDLE_TIME_MS`) is reclaimed by a live worker and executed, ensuring **no job is ever permanently stuck in `pending` or `running`**.
+   - Any message idle in the PEL for longer than 30 seconds (`CLAIM_MIN_IDLE_TIME_MS`) can be reclaimed by an available worker. If all workers are unavailable, recovery waits until a worker returns.
 
 4. **Horizontal Scaling**:
    - Compute capacity scales linearly by increasing worker replicas in Kubernetes:
@@ -121,6 +121,8 @@ flowchart TD
      kubectl scale deployment worker --replicas=5 -n ai-task-platform
      ```
    - Each new worker pod registers as a new consumer in `task_workers` and starts pulling from the shared stream without configuration changes.
+5. **Queue Retention**:
+   - After a message is acknowledged, the worker deletes its stream entry. Pending entries remain available for recovery, while completed jobs do not accumulate indefinitely in Redis.
 
 ---
 
@@ -136,24 +138,19 @@ flowchart TD
   $$\text{Throughput}_{\text{peak}} = \frac{70,000\text{ tasks}}{8 \times 3,600\text{ seconds}} \approx 2.43\text{ tasks/second}$$
   With peak spikes reaching **10x baseline** ($\approx 12\text{ to } 25\text{ tasks/second}$).
 
-### Resource & Sizing Analysis
+### Capacity Planning
 
 1. **Worker Compute Capacity**:
-   - Benchmarked Python string processing durations:
-     - `UPPERCASE`: $\approx 2.5\text{ ms}$
-     - `LOWERCASE`: $\approx 2.5\text{ ms}$
-     - `REVERSE_STRING`: $\approx 3.0\text{ ms}$
-     - `WORD_COUNT`: $\approx 4.0\text{ ms}$
-   - Including network round-trip to MongoDB and Redis acknowledgment, a single worker process handles $\approx 50\text{ tasks/second}$.
-   - **Required Workers**: A minimum of **2 replicas** easily fulfills average ($1.16\text{ tasks/s}$) and peak ($25\text{ tasks/s}$) traffic with $>100\%$ headroom.
+   - At 100,000 tasks/day, average arrival rate is 1.16 tasks/second. If 70% arrive in an 8-hour window, the average during that window is 2.43 tasks/second. These figures are traffic assumptions, not a capacity test.
+   - No worker throughput benchmark has been run. Measure with representative text sizes and the target database/queue before claiming production capacity.
+   - The production HPA scales workers using CPU utilization (70% target, 3–15 replicas). Queue-depth autoscaling is not configured; it would require an external metrics adapter such as KEDA.
 
 2. **Redis Memory & Throughput**:
-   - Each task stream entry payload ($\text{taskId}$, $\text{operation}$, $\text{retryCount}$, timestamp) is $\approx 250\text{ bytes}$.
-   - Even if the queue buffers 10,000 unprocessed tasks simultaneously, RAM consumption is under **$5\text{ MB}$**.
-   - Redis easily handles $>50,000\text{ ops/sec}$ on a single core; $25\text{ ops/sec}$ consumes $<0.1\%$ of Redis capacity.
+   - Acknowledged stream entries are deleted by the worker. Queue memory and throughput still depend on task arrival patterns, Redis configuration, and pending entries; measure these under load rather than relying on payload-size estimates.
 
 3. **Database Connection Pooling**:
-   - Backend Express API uses Mongoose connection pool: `minPoolSize: 5`, `maxPoolSize: 50`.
+   - Backend Mongoose and worker PyMongo use their client defaults except for the worker `maxPoolSize: 50`.
+   - The checked-in MongoDB and Redis Kubernetes workloads are single replicas. For production availability and the stated daily volume, use managed/high-availability services, backups, and measured capacity limits.
    - Worker PyMongo client uses `maxPoolSize: 50`.
    - Write load for 100k tasks/day entails:
      - 1 task document creation (`INSERT`)
@@ -162,8 +159,7 @@ flowchart TD
      - Total: $300,000\text{ DB writes/day} \approx 3.5\text{ writes/second}$. MongoDB comfortably handles thousands of writes per second on standard SSD storage.
 
 4. **Queue Lag Monitoring & Backpressure**:
-   - Queue lag is tracked in real-time via `XLEN tasks:stream` and `XPENDING tasks:stream task_workers`.
-   - If `XLEN` exceeds 500 tasks, Kubernetes Horizontal Pod Autoscaler (HPA) triggers automated scale-out of worker pods from 2 to 10 replicas.
+   - Monitor Redis stream and consumer-group metrics for backlog, pending jobs, and oldest-message age. Queue-depth autoscaling is not currently configured.
 
 ---
 
@@ -177,7 +173,6 @@ MongoDB indexes are specifically designed to optimize query patterns across user
 | `tasks` | `{ userId: 1, createdAt: -1 }` | **Compound** | Powers the primary Task History query (`GET /api/tasks?page=1`). The equality match on `userId` followed by sort order on `createdAt` eliminates in-memory sorting. |
 | `tasks` | `{ status: 1, createdAt: -1 }` | **Compound** | Powers administrative status filtering and operational dashboards tracking active system state. |
 | `tasks` | `{ userId: 1, status: 1 }` | **Compound** | Powers the User Stats aggregation (`GET /api/tasks/stats`), computing total, pending, running, success, and failed counts via fast index-only scans. |
-| `tasks` | `{ status: 1 }` | **Single Field** | Enables high-speed detection and recovery of stalled tasks without table scans. |
 
 ---
 
@@ -199,7 +194,7 @@ MongoDB indexes are specifically designed to optimize query patterns across user
      ```python
      collection.update_one({"_id": task_id, "status": "pending"}, {"$set": {"status": "running"}})
      ```
-   - Only the first worker to update the record proceeds; duplicates are discarded.
+   - The conditional update protects the initial transition. Reclaimed `running` work may execute again, so processing is at-least-once; deterministic operations and task-ID-scoped writes make repeated completion safe.
 
 5. **Poison Pill Prevention**:
    - If a task payload is corrupted or contains an unrecoverable processing error, the worker marks the task as `failed`, logs the exact error details into MongoDB, and acknowledges the message (`XACK`) to prevent infinite reprocessing loops.
@@ -226,7 +221,7 @@ ai-task-processing-infra/kubernetes/
 
 2. **Automated Container Packaging**:
    - `.github/workflows/build-and-push.yml` builds multi-stage Docker images.
-   - Images are tagged with the short Git commit SHA (e.g., `aitaskplatform/backend:a1f14d0`).
+   - Images are tagged with the short Git commit SHA (e.g., `<dockerhub-user>/ai-task-backend:a1f14d0`).
 
 3. **Infrastructure Manifest Update**:
    - CI workflow clones `ai-task-processing-infra`.

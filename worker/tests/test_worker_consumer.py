@@ -41,6 +41,7 @@ def test_process_message_success(mock_consumer):
             mock_consumer.group_name,
             message_id
         )
+        mock_consumer.redis_client.xdel.assert_called_once_with(mock_consumer.stream_key, message_id)
 
 
 def test_process_message_unsupported_operation(mock_consumer):
@@ -68,6 +69,7 @@ def test_process_message_unsupported_operation(mock_consumer):
         assert "Unsupported operation" in args[1]
 
         mock_consumer.redis_client.xack.assert_called_once()
+        mock_consumer.redis_client.xdel.assert_called_once_with(mock_consumer.stream_key, message_id)
 
 
 def test_process_message_idempotent_skip_if_already_success(mock_consumer):
@@ -90,3 +92,4 @@ def test_process_message_idempotent_skip_if_already_success(mock_consumer):
         mock_running.assert_not_called()
         # Should still acknowledge message
         mock_consumer.redis_client.xack.assert_called_once()
+        mock_consumer.redis_client.xdel.assert_called_once_with(mock_consumer.stream_key, message_id)

@@ -1,6 +1,7 @@
 name: Continuous Integration (CI)
 
 on:
+  workflow_call:
   push:
     branches: [ main, develop ]
   pull_request:
@@ -29,6 +30,9 @@ jobs:
 
       - name: Install Frontend Dependencies
         run: npm ci
+
+      - name: Run Frontend Lint
+        run: npm run lint
 
       - name: Run Frontend Tests
         run: npm test
@@ -74,6 +78,9 @@ jobs:
       - name: Install Backend Dependencies
         run: npm ci
 
+      - name: Run Backend Lint
+        run: npm run lint
+
       - name: Run Backend Integration Tests
         run: npm test
         env:
@@ -81,7 +88,6 @@ jobs:
           MONGODB_URI: mongodb://localhost:27017/ai_task_platform_ci
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          JWT_SECRET: ci_test_secret_key_at_least_32_characters_long
 
   # ==========================================
   # Python Worker Lint & Tests

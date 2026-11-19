@@ -28,6 +28,7 @@ class QueueService {
         logger.debug(`Redis Stream consumer group '${this.consumerGroup}' already exists.`);
       } else {
         logger.error(`Error initializing Redis Stream queue: ${err.message}`);
+        throw err;
       }
     }
   }

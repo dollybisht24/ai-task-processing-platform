@@ -24,8 +24,7 @@ const taskSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'User ID is required'],
-      index: true
+      required: [true, 'User ID is required']
     },
     title: {
       type: String,
@@ -49,8 +48,7 @@ const taskSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ['pending', 'running', 'success', 'failed'],
-      default: 'pending',
-      index: true
+      default: 'pending'
     },
     result: {
       type: mongoose.Schema.Types.Mixed,

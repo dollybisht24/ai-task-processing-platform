@@ -3,7 +3,6 @@ from bson import ObjectId
 from typing import Optional, Dict, Any
 from app.database.mongo_client import get_task_collection
 from app.config.settings import settings
-from app.utils.logger import logger
 
 
 class TaskService:

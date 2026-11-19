@@ -41,11 +41,14 @@ export const AuthProvider = ({ children }) => {
       setToken(authToken);
       localStorage.setItem('token', authToken);
       localStorage.setItem('user', JSON.stringify(loggedInUser));
-      toast.success(`Welcome back, ${loggedInUser.name}!`);
+      toast.success(`Welcome back, ${loggedInUser.name}!`, { id: 'auth-success' });
       return true;
     } catch (error) {
-      const msg = error.response?.data?.message || 'Login failed. Please verify credentials.';
-      toast.error(msg);
+      const status = error.response?.status;
+      const msg = status === 429
+        ? 'Too many login attempts. Please wait 15 minutes and try again.'
+        : (error.response?.data?.message || 'Login failed. Please verify credentials.');
+      toast.error(msg, { id: 'auth-error' });
       throw error;
     }
   };
@@ -58,11 +61,13 @@ export const AuthProvider = ({ children }) => {
       setToken(authToken);
       localStorage.setItem('token', authToken);
       localStorage.setItem('user', JSON.stringify(newUser));
-      toast.success('Registration successful!');
+      toast.success('Registration successful!', { id: 'auth-success' });
       return true;
     } catch (error) {
-      const msg = error.response?.data?.message || 'Registration failed.';
-      toast.error(msg);
+      const msg = error.response?.status === 429
+        ? 'Too many authentication attempts. Please wait 15 minutes and try again.'
+        : (error.response?.data?.message || 'Registration failed.');
+      toast.error(msg, { id: 'auth-error' });
       throw error;
     }
   };

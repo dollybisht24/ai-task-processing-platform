@@ -6,8 +6,6 @@ require('./setup');
 describe('Task Management API Endpoints', () => {
   let user1Token;
   let user2Token;
-  let user1Id;
-  let user2Id;
 
   beforeEach(async () => {
     // Register User 1
@@ -20,7 +18,6 @@ describe('Task Management API Endpoints', () => {
         confirmPassword: 'Password123!'
       });
     user1Token = res1.body.data.token;
-    user1Id = res1.body.data.user._id;
 
     // Register User 2
     const res2 = await request(app)
@@ -32,7 +29,6 @@ describe('Task Management API Endpoints', () => {
         confirmPassword: 'Password123!'
       });
     user2Token = res2.body.data.token;
-    user2Id = res2.body.data.user._id;
   });
 
   describe('POST /api/tasks', () => {

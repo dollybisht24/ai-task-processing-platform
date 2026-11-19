@@ -46,6 +46,18 @@ class RedisStreamConsumer:
             self.ensure_stream_and_group()
         return self.redis_client
 
+    def acknowledge_message(self, message_id: str) -> None:
+        try:
+            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+        except RedisError as exc:
+            logger.error(f"Could not acknowledge stream message [{message_id}]: {exc}")
+            return
+
+        try:
+            self.redis_client.xdel(self.stream_key, message_id)
+        except RedisError as exc:
+            logger.warning(f"Could not remove acknowledged stream message [{message_id}]: {exc}")
+
     def ensure_stream_and_group(self) -> None:
         """
         Creates consumer group and stream if not already initialized.
@@ -80,20 +92,20 @@ class RedisStreamConsumer:
 
         if not task_id:
             logger.error(f"Received malformed message without taskId: {fields}. Acknowledging.")
-            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+            self.acknowledge_message(message_id)
             return
 
         # Fetch task from MongoDB
         task = TaskService.get_task(task_id)
         if not task:
             logger.warn(f"Task [{task_id}] not found in MongoDB. Acknowledging message.")
-            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+            self.acknowledge_message(message_id)
             return
 
         # Idempotency check: if task already completed successfully, just ACK
         if task.get("status") == "success":
             logger.info(f"Task [{task_id}] already completed successfully. Skipping.")
-            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+            self.acknowledge_message(message_id)
             return
 
         # Atomic transition to running status
@@ -121,7 +133,7 @@ class RedisStreamConsumer:
             )
 
             # Acknowledge message in Redis Stream
-            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+            self.acknowledge_message(message_id)
 
         except TextProcessingError as tpe:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -133,7 +145,7 @@ class RedisStreamConsumer:
                 extra={"task_id": task_id, "error": error_msg, "status": "failed"}
             )
             # Acknowledge non-recoverable client error
-            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+            self.acknowledge_message(message_id)
 
         except Exception as exc:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -145,7 +157,7 @@ class RedisStreamConsumer:
                 extra={"task_id": task_id, "error": error_msg, "status": "failed"}
             )
             # Acknowledge to prevent poison pill loop
-            self.redis_client.xack(self.stream_key, self.group_name, message_id)
+            self.acknowledge_message(message_id)
 
     def recover_stalled_messages(self) -> None:
         """

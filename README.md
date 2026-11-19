@@ -169,7 +169,7 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 # Authentication
-JWT_SECRET=super_secret_jwt_key_at_least_32_characters_long_for_security
+JWT_SECRET=
 JWT_EXPIRES_IN=7d
 
 # Queue & Logging
@@ -177,6 +177,17 @@ STREAM_KEY=tasks:stream
 CONSUMER_GROUP=task_workers
 LOG_LEVEL=INFO
 ```
+
+Generate a local signing key before starting the backend or Docker Compose:
+
+```bash
+openssl rand -hex 32
+```
+
+Put the generated value in `.env` as `JWT_SECRET=<generated-value>`.
+
+Set the output as `JWT_SECRET` in `.env`. The backend refuses to start without a
+secret of at least 32 characters.
 
 ---
 
@@ -241,10 +252,10 @@ docker compose down
 ```
 
 Service URLs:
-- **Web Dashboard**: http://localhost
-- **Backend API**: http://localhost:5000
-- **API Health Check**: http://localhost:5000/api/health
-- **Readiness Probe**: http://localhost:5000/api/ready
+- **Web Dashboard**: http://localhost:8080
+- **Backend API**: http://localhost:5001
+- **API Health Check**: http://localhost:5001/api/health
+- **Readiness Probe**: http://localhost:5001/api/ready
 
 ---
 
@@ -322,6 +333,12 @@ kubectl apply -f argocd/production-application.yaml
 ./scripts/test-scaling.sh ai-task-platform 4
 ```
 
+Before enabling image publishing, configure these Actions secrets in the
+application repository: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and
+`GITOPS_TOKEN`. The GitOps token must have contents write access to the
+infrastructure repository. The workflow currently expects that repository to
+be named `ai-task-processing-infra` under the same GitHub owner.
+
 ---
 
 ## 13. Troubleshooting
@@ -329,6 +346,6 @@ kubectl apply -f argocd/production-application.yaml
 - **MongoDB connection refused**:
   Verify MongoDB container or service is running: `docker compose ps mongodb` or `systemctl status mongod`.
 - **Redis connection errors**:
-  Ensure Redis is accessible on port 6379: `docker exec -it ai_task_redis redis-cli ping`.
+  Ensure Redis is accessible on port 6380: `docker compose exec redis redis-cli ping`.
 - **Tasks remaining in pending**:
-  Confirm at least one Python worker pod is active: `docker compose logs -f worker`. Inspect Redis stream messages via `docker exec -it ai_task_redis redis-cli XINFO STREAM tasks:stream`.
+  Confirm at least one Python worker is active: `docker compose logs -f worker`. Inspect Redis stream messages via `docker compose exec redis redis-cli XINFO STREAM tasks:stream`.

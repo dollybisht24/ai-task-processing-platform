@@ -34,7 +34,7 @@ export const TaskDetailsPage = () => {
   const [logSearch, setLogSearch] = useState('');
 
   // Adaptive real-time polling: polls every 1.5s while pending/running, halts immediately on success/failed
-  const { task, loading, error, refetch } = useTaskPolling(id, null, 1500, (completed) => {
+  const { task, loading, error, errorStatus, refetch } = useTaskPolling(id, null, 1500, (completed) => {
     if (completed.status === 'success') {
       toast.success('Task execution completed successfully!');
     } else if (completed.status === 'failed') {
@@ -122,12 +122,25 @@ export const TaskDetailsPage = () => {
   }
 
   if (error || !task) {
+    const isRateLimited = errorStatus === 429;
     return (
       <DashboardLayout>
         <div className="p-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-slate-900">Task Not Found</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            {isRateLimited ? 'Requests Temporarily Limited' : 'Task Not Found'}
+          </h2>
           <p className="text-xs text-slate-500 mt-1">{error || 'Unable to locate task with specified ID.'}</p>
+          {isRateLimited && (
+            <button
+              type="button"
+              onClick={refetch}
+              className="inline-flex items-center space-x-2 mt-4 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Try Again</span>
+            </button>
+          )}
           <Link
             to="/tasks"
             className="inline-flex items-center space-x-2 mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"

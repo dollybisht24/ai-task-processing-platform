@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 const { errorResponse } = require('../utils/apiResponse');
 
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   logger.error('Unhandled API Error: %s', err.stack || err.message);
 
   // Mongoose CastError (invalid ObjectId)
